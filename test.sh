@@ -9,7 +9,7 @@ assert() {
   actual="$?"
 
   if [ "$actual" = "$expected" ]; then
-    echo "$input => $actual"
+    echo -e "\e[37;42;1m PASS \e[m $input => $actual"
   else
     echo "$input => $expected expected, but got $actual"
     exit 1
@@ -26,5 +26,8 @@ assert 41 " 12 + 34 - 5 "
 assert 47 '5+6*7'
 assert 15 '5*(9-6)'
 assert 4 '(3+5)/2'
+# 単項プラスと単項マイナス
+assert 9 '10+-1'
+assert 8 '-10*2+30+-2'
 
 echo OK
