@@ -109,6 +109,12 @@ Token *tokenize(void) {
       continue;
     }
 
+    // 識別子の時のトークンを生成
+    if(*p >= 'a' && *p <= 'z') {
+      cur = new_token(TK_INDENT, cur, p++, 1);
+      continue;
+    }
+
     // 記号のときのトークンを生成
     if (strchr("+-*/()<=>", *p)) {
       cur = new_token(TK_RESERVED, cur, p++, 1);
