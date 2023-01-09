@@ -6,6 +6,9 @@ Token *token;
 // 入力プログラム
 char *user_input;
 
+// ローカル変数
+LVar *locals;
+
 // エラーを報告するための関数
 // printfと同じ引数を取る
 void error(char *fmt, ...) {
@@ -43,7 +46,7 @@ bool consume(char *op) {
 
 // 次のトークンが識別子だった時は、そのトークンを返す
 Token* consume_ident() {
-  if (token->kind != TK_RESRVED) {
+  if (token->kind != TK_IDENT) {
     return NULL;
   }
   Token* tok = token;
@@ -121,7 +124,13 @@ Token *tokenize(void) {
 
     // 識別子の時のトークンを生成
     if(*p >= 'a' && *p <= 'z') {
-      cur = new_token(TK_RESRVED, cur, p++, 1);
+      char *c = p;
+      while('a' <= *c && *c <= 'z') {
+        c++;
+      }
+      int len = c - p;
+      cur = new_token(TK_IDENT, cur, p, len);
+      p = c;
       continue;
     }
 
@@ -171,6 +180,14 @@ Node *new_num(int val) {
   Node *node = new_node(ND_NUM);
   node->val = val;
   return node;
+}
+
+// 変数を名前で検索する。見つからなかったらNULLを返す
+LVar *find_lvar(Token *tok) {
+  for(LVar *var = locals; var; var = var->next)
+    if(var->len == tok->len && !memcmp(tok->str, var->name, var->len))
+      return var;
+  return NULL;
 }
 
 // AST
@@ -286,8 +303,25 @@ Node *primary() {
   if (tok) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = ND_LVAR;
-    node->offset = (tok->str[0] - 'a' + 1) * 8;
+
+    LVar *lvar = find_lvar(tok);
+    if (lvar) {
+      node->offset = lvar->offset;
+    } else {
+      lvar = calloc(1, sizeof(LVar));
+      lvar->next = locals;
+      lvar->name = tok->str;
+      lvar->len = tok->len;
+      if(locals == NULL) {
+        lvar->offset = 8;
+      } else {
+        lvar->offset = locals->offset + 8;
+      }
+      node->offset = lvar->offset;
+      locals = lvar;
+    }
     return node;
   }
+
   return new_num(expect_number());
 }

@@ -65,6 +65,23 @@ bool startswith(char *p, char *q);
 // 入力文字列pをトークナイズしてそれを返す
 Token *tokenize(void);
 
+
+// ローカル変数
+typedef struct LVar LVar;
+
+// ローカル変数の型
+struct LVar {
+  LVar *next; // 次の変数かNULL
+  char *name; // 変数の名前
+  int len;    // 名前の長さ
+  int offset; // RBPからのオフセット
+};
+
+// ローカル変数
+extern LVar *locals;
+
+LVar *find_lvar(Token * tok);
+
 //
 // Parser
 //

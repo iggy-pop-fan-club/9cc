@@ -55,5 +55,7 @@ assert 1 '5*(9-6)>-10*2+30+-2;'
 # 1文字変数のテスト
 assert 14 "a = 3;b = 5 * 6 - 8;a + b / 2;"
 
+# 複数文字変数のテスト
+assert 6 "foo = 1;bar = 2 + 3;foo+bar;"
 
 echo OK

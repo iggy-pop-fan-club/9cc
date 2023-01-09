@@ -10,6 +10,7 @@ int main(int argc, char **argv) {
   // 結果はcodeに保存される
   user_input = argv[1];
   token = tokenize();
+
   program();
 
   // アセンブリの前半部分を出力
