@@ -33,7 +33,7 @@ void error_at(char *loc, char *fmt, ...) {
 // 次のトークンが期待している記号のときには、トークンを1つ読み進めて
 // 真を返す。それ以外の場合には偽を返す。
 bool consume(char *op) {
-  if (token->kind != TK_RESERVED ||
+  if (token->kind != TK_RESRVED ||
       strlen(op) != token->len ||
       memcmp(token->str, op, token->len))
     return false;
@@ -41,10 +41,20 @@ bool consume(char *op) {
   return true;
 }
 
+// 次のトークンが識別子だった時は、そのトークンを返す
+Token* consume_ident() {
+  if (token->kind != TK_RESRVED) {
+    return NULL;
+  }
+  Token* tok = token;
+  token = token->next;
+  return tok;
+}
+
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
 void expect(char *op) {
-  if (token->kind != TK_RESERVED || strlen(op) != token->len ||
+  if (token->kind != TK_RESRVED || strlen(op) != token->len ||
       memcmp(token->str, op, token->len)) {
     error_at(token->str, "expected \"%s\"", op);
   }
@@ -104,27 +114,29 @@ Token *tokenize(void) {
     // 比較演算子かチェック
     if (startswith(p, "==") || startswith(p, "!=") ||
         startswith(p, "<=") || startswith(p, ">=")) {
-      cur = new_token(TK_RESERVED, cur, p, 2);
+      cur = new_token(TK_RESRVED, cur, p, 2);
       p += 2;
       continue;
     }
 
     // 識別子の時のトークンを生成
     if(*p >= 'a' && *p <= 'z') {
-      cur = new_token(TK_INDENT, cur, p++, 1);
+      cur = new_token(TK_RESRVED, cur, p++, 1);
       continue;
     }
 
     // 記号のときのトークンを生成
-    if (strchr("+-*/()<=>", *p)) {
-      cur = new_token(TK_RESERVED, cur, p++, 1);
+    if (strchr("+-*/()<>=;", *p)) {
+      cur = new_token(TK_RESRVED, cur, p++, 1);
       continue;
     }
 
     // 数字の時のトークンを生成
     if (isdigit(*p)) {
-      cur = new_token(TK_NUM, cur, p, 0);
+      cur = new_token(TK_NUM, cur, p, 1);
+      char *q = p;
       cur->val = strtol(p, &p, 10);
+      cur->len = p - q;
       continue;
     }
 
@@ -139,15 +151,8 @@ Token *tokenize(void) {
 // Parser
 //
 
-// AST
-// expr       = equality
-// equality   = relational ("==" relational | "!=" relational)*
-// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
-// add        = mul ("+" mul | "-" mul)*
-// mul        = unary ("*" unary | "/" unary)*
-// unary      = ("+" | "-")? primary
-// primary    = num | "(" expr ")"
-
+// nodeの配列
+Node *code[100];
 
 Node *new_node(NodeKind kind) {
   Node *node = calloc(1, sizeof(Node));
@@ -168,20 +173,42 @@ Node *new_num(int val) {
   return node;
 }
 
-Node *expr();
-Node *equality();
-Node *relational();
-Node *add();
-Node *mul();
-Node *unary();
-Node *primary();
+// AST
+// program    = stmt*
+// stmt       = expr ";"
+// expr       = assign
+// assign     = equality ("=" assign)?
+// equality   = relational ("==" relational | "!=" relational)*
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
+// add        = mul ("+" mul | "-" mul)*
+// mul        = unary ("*" unary | "/" unary)*
+// unary      = ("+" | "-")? primary
+// primary    = num | ident | "(" expr ")"
 
-// expr = equality
-Node *expr() {
-  return equality();
+void program() {
+  int i = 0;
+  while (!at_eof())
+    code[i++] = stmt();
+  code[i] = NULL;
 }
 
-// equality   = relational ("==" relational | "!=" relational)*
+Node *stmt() {
+  Node *node = expr();
+  expect(";");
+  return node;
+}
+
+Node *expr() {
+  return assign();
+}
+
+Node *assign() {
+  Node *node = equality();
+  if (consume("="))
+    node = new_binary(ND_ASSIGN, node, assign());
+  return node;
+}
+
 Node *equality() {
   Node *node = relational();
 
@@ -195,7 +222,6 @@ Node *equality() {
   }
 }
 
-// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 Node *relational() {
   Node *node = add();
 
@@ -213,7 +239,6 @@ Node *relational() {
   }
 }
 
-// add = mul ("+" mul | "-" mul)*
 Node *add() {
   Node *node = mul();
 
@@ -228,8 +253,6 @@ Node *add() {
 }
 
 
-//// mul = primary ("*" primary | "/" primary)*
-// mul = unary ("*" unary | "/" unary)*
 Node *mul() {
   Node *node = unary();
 
@@ -243,17 +266,15 @@ Node *mul() {
   }
 }
 
-// unary = ("+" | "-")? primary
 Node *unary() {
   if (consume("+"))
-    return primary();
+    return unary();
   if (consume("-"))
-    return new_binary(ND_SUB, new_num(0), primary());
+    return new_binary(ND_SUB, new_num(0), unary());
   return primary();
 }
 
 
-// primary = "(" expr ")" | num
 Node *primary() {
   if (consume("(")) {
     Node *node = expr();
@@ -261,5 +282,12 @@ Node *primary() {
     return node;
   }
 
+  Token *tok = consume_ident();
+  if (tok) {
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = ND_LVAR;
+    node->offset = (tok->str[0] - 'a' + 1) * 8;
+    return node;
+  }
   return new_num(expect_number());
 }

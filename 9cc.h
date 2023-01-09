@@ -1,4 +1,3 @@
-
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -10,8 +9,8 @@
 // トークンの種類
 // NOTE: 記号のトークンはkindだけ知ればいいので、valを持たない
 typedef enum {
-  TK_RESERVED, // 記号
-  TK_INDENT,   // 識別子
+  TK_RESRVED, // 記号
+  TK_IDENT,   // 識別子
   TK_NUM,      // 整数トークン
   TK_EOF,      // 入力の終わりを表すトークン
 } TokenKind;
@@ -43,6 +42,8 @@ void error_at(char *loc, char *fmt, ...);
 // 次のトークンが期待している記号のときには、トークンを1つ読み進めて
 // 真を返す。それ以外の場合には偽を返す。
 bool consume(char *op);
+
+Token *consume_ident();
 
 // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
 // それ以外の場合にはエラーを報告する。
@@ -103,6 +104,7 @@ Node *new_num(int val);
 void program();
 Node *stmt();
 Node *expr();
+Node *assign();
 Node *equality();
 Node *relational();
 Node *add();
